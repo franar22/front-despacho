@@ -48,8 +48,13 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          command_timeout: 10m
+          command_timeout: 15m
           script: |
+            if ! command -v docker-compose &> /dev/null; then
+              sudo curl -sL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" \
+                -o /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose
+            fi
             mkdir -p ~/deploy/front-despacho && cd ~/deploy/front-despacho
             cat > .env << ENVEOF
             DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
@@ -75,6 +80,6 @@ jobs:
             COMPOSEEOF
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/front-despacho:latest
-            docker compose up -d --remove-orphans
-            sleep 5 && docker compose ps
+            docker-compose up -d --force-recreate --remove-orphans
+            sleep 5 && docker-compose ps
             docker image prune -f
