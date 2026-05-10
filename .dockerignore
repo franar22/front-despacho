@@ -1,0 +1,27 @@
+# Dependencies (se instalan dentro del contenedor con npm ci)
+node_modules/
+npm-debug.log*
+
+# Build output (se genera dentro del contenedor con npm run build)
+dist/
+build/
+
+# Variables de entorno locales (nunca deben ir a la imagen)
+.env
+.env.local
+.env.*.local
+
+# IDE y OS
+.DS_Store
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Docker (no incluir dentro de la imagen)
+Dockerfile
+docker-compose.yml
+.dockerignore

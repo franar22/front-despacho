@@ -1,0 +1,80 @@
+name: CI/CD - Frontend Despacho
+on:
+  push:
+    branches:
+      - deploy
+
+jobs:
+  build-and-push:
+    name: Build & Push imagen Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login en Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Generar tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/front-despacho
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+      - name: Build & Push imagen
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          dockerfile: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy en EC2 Frontend
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Deploy con docker compose
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST_FRONTEND }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          command_timeout: 10m
+          script: |
+            mkdir -p ~/deploy/front-despacho && cd ~/deploy/front-despacho
+            cat > .env << ENVEOF
+            DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
+            BACK_VENTAS_HOST=${{ secrets.EC2_HOST_BACKEND }}
+            BACK_VENTAS_PORT=8080
+            BACK_DESPACHOS_HOST=${{ secrets.EC2_HOST_BACKEND }}
+            BACK_DESPACHOS_PORT=8081
+            IMAGE_TAG=latest
+            ENVEOF
+            cat > docker-compose.yml << 'COMPOSEEOF'
+            services:
+              front-despacho:
+                image: ${DOCKERHUB_USERNAME:-tuusuario}/front-despacho:${IMAGE_TAG:-latest}
+                container_name: front-despacho
+                environment:
+                  BACK_VENTAS_HOST: ${BACK_VENTAS_HOST}
+                  BACK_VENTAS_PORT: ${BACK_VENTAS_PORT:-8080}
+                  BACK_DESPACHOS_HOST: ${BACK_DESPACHOS_HOST}
+                  BACK_DESPACHOS_PORT: ${BACK_DESPACHOS_PORT:-8081}
+                ports:
+                  - "80:80"
+                restart: unless-stopped
+            COMPOSEEOF
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/front-despacho:latest
+            docker compose up -d --remove-orphans
+            sleep 5 && docker compose ps
+            docker image prune -f

@@ -1,0 +1,21 @@
+# Docker Compose independiente - Frontend Despacho
+# IMPORTANTE: Requiere que los backends estén corriendo y accesibles.
+#   - En local: primero levanta back-Ventas y back-Despachos con sus propios compose
+#   - En EC2: ajusta BACK_VENTAS_HOST y BACK_DESPACHOS_HOST a las IPs privadas
+# Uso: docker compose up -d
+services:
+  front-despacho:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: front-despacho
+    environment:
+      # LOCAL (docker-compose en una sola máquina): usar IP del gateway de Docker
+      # EC2 separadas: reemplazar por la IP privada de la EC2 backend
+      BACK_VENTAS_HOST: ${BACK_VENTAS_HOST:-host.docker.internal}
+      BACK_VENTAS_PORT: ${BACK_VENTAS_PORT:-8080}
+      BACK_DESPACHOS_HOST: ${BACK_DESPACHOS_HOST:-host.docker.internal}
+      BACK_DESPACHOS_PORT: ${BACK_DESPACHOS_PORT:-8081}
+    ports:
+      - "80:80"
+    restart: unless-stopped
