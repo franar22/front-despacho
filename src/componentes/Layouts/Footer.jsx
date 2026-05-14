@@ -33,7 +33,7 @@ function Footer() {
             </div>
             <div>
               <h2 className="mb-6 text-sm font-semibold  uppercase dark:text-white">
-                Siguenos
+                Siguenos en las diferentes redes sociales
               </h2>
               <ul className=" text-white">
                 <li className="mb-4">
